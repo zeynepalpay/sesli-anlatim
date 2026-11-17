@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EEML311 Mikroişlemciler · Sesli Çıkmış Soru Anlatımı</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#171d2e; --panel2:#1e2640; --accent:#4fd1c5;
+    --accent2:#f6ad55; --text:#e6ebf5; --muted:#8b96b3; --code:#10141f;
+    --ok:#48bb78; --step-border:#2a3350;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text)}
+  header{padding:14px 20px;background:linear-gradient(90deg,#1a2138,#141a2b);border-bottom:1px solid #2a3350;
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+  header h1{font-size:17px;margin:0;font-weight:600}
+  header .sub{color:var(--muted);font-size:12px}
+  .badge{background:var(--accent);color:#08211e;font-size:11px;padding:3px 8px;border-radius:20px;font-weight:700}
+
+  /* ---- Oynatıcı ---- */
+  .player{position:sticky;top:57px;z-index:15;background:#12182a;border-bottom:1px solid #2a3350;
+    padding:10px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  button{background:var(--panel2);color:var(--text);border:1px solid #33406a;border-radius:8px;
+    padding:9px 15px;font-size:14px;cursor:pointer;transition:.15s;font-weight:600}
+  button:hover{background:#27314f;border-color:var(--accent)}
+  button.primary{background:var(--accent);color:#08211e;border-color:var(--accent)}
+  button.primary:hover{background:#63e0d3}
+  button.warn{background:var(--accent2);color:#2b1a05;border-color:var(--accent2)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .player label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .player select,.player input[type=range]{background:var(--panel2);color:var(--text);
+    border:1px solid #33406a;border-radius:6px;padding:5px}
+  .now{font-size:12px;color:var(--accent);min-width:180px}
+
+  .layout{display:grid;grid-template-columns:300px 1fr;gap:0;min-height:calc(100vh - 110px)}
+  /* ---- Liste ---- */
+  nav{background:var(--panel);border-right:1px solid #2a3350;overflow-y:auto;max-height:calc(100vh - 110px);position:sticky;top:110px}
+  nav .grp{padding:9px 14px;font-size:11px;letter-spacing:1px;color:var(--accent);background:#131a2c;
+    border-top:1px solid #232c48;border-bottom:1px solid #232c48;text-transform:uppercase;position:sticky;top:0}
+  nav .item{padding:11px 14px;border-bottom:1px solid #202843;cursor:pointer;font-size:13px;line-height:1.4}
+  nav .item:hover{background:#1e2640}
+  nav .item.active{background:#243055;border-left:3px solid var(--accent)}
+  nav .item .meta{font-size:11px;color:var(--muted);margin-top:3px}
+  .stars{color:var(--accent2);font-size:11px;letter-spacing:1px}
+  .tag{display:inline-block;background:#2b3a63;color:#a9c0ff;font-size:10px;padding:1px 6px;border-radius:4px;margin-right:4px}
+
+  /* ---- İçerik ---- */
+  main{padding:22px 28px 60px;max-width:1000px}
+  .card{background:var(--panel);border:1px solid var(--step-border);border-radius:12px;margin-bottom:18px;overflow:hidden}
+  .card .head{padding:14px 18px;background:var(--panel2);border-bottom:1px solid var(--step-border)}
+  .card .head h2{margin:0 0 6px;font-size:16px}
+  .prompt{padding:15px 18px;font-size:14.5px;line-height:1.65;background:#141a2c;border-left:3px solid var(--accent2)}
+  .prompt b{color:var(--accent2)}
+  .steps{padding:12px 18px 18px}
+  .step{border:1px solid var(--step-border);border-left:4px solid #33406a;border-radius:8px;
+    padding:11px 14px;margin:9px 0;background:#141b2e;transition:.25s;opacity:.62}
+  .step .no{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.5px}
+  .step p{margin:6px 0 0;font-size:14px;line-height:1.6}
+  .step.speaking{opacity:1;border-left-color:var(--accent);background:#1b2a45;
+    box-shadow:0 0 0 1px var(--accent) inset, 0 4px 18px rgba(79,209,197,.12);transform:translateX(3px)}
+  .step.done{opacity:.9;border-left-color:var(--ok)}
+  pre{background:var(--code);border:1px solid #26304c;border-radius:7px;padding:11px 13px;margin:9px 0 0;
+    font-family:Consolas,"Courier New",monospace;font-size:13px;line-height:1.55;overflow-x:auto;color:#c8f5e4}
+  pre .c{color:#6b7ba6}
+  .answer{margin-top:12px;padding:11px 14px;background:#12301f;border:1px solid #2c6b4a;border-radius:8px;
+    font-size:14.5px;color:#9ff0c4;font-weight:600}
+  .answer::before{content:"✔ SONUÇ: ";color:var(--ok)}
+  .warnbox{margin-top:10px;padding:10px 13px;background:#3a2a10;border:1px solid #7c5a1e;border-radius:8px;
+    font-size:13.5px;color:#f6cc7a}
+  .warnbox::before{content:"⚠ DİKKAT: ";font-weight:700}
+  .hint{font-size:13px;color:var(--muted);margin-top:8px;font-style:italic}
+  .hidden{display:none}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
+  @media(max-width:820px){.layout{grid-template-columns:1fr}nav{max-height:220px;position:relative;top:0}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📘 EEML311 Mikroişlemciler — Sesli Çıkmış Soru Anlatımı</h1>
+  <span class="badge">PIC16F877A · Assembly Odaklı</span>
+  <span class="sub">Çıkmış sınavlardan derlendi · adım adım çözüm + sesli okuma</span>
+</header>
+
+<div class="player">
+  <button class="primary" id="btnPlay">▶ Anlatımı Başlat</button>
+  <button id="btnPause">⏸ Duraklat</button>
+  <button id="btnStop">⏹ Durdur</button>
+  <button id="btnPrev">⏮ Önceki Soru</button>
+  <button id="btnNext">Sonraki Soru ⏭</button>
+  <button class="warn" id="btnAll">📚 Tüm Soruları Sırayla Dinle</button>
+  <label>Hız <input type="range" id="rate" min="0.7" max="1.4" step="0.05" value="1" style="width:90px"><span id="rateVal">1.0x</span></label>
+  <label>Ses <select id="voiceSel" style="max-width:210px"></select></label>
+  <span class="now" id="nowPlaying">Hazır — bir soru seçin</span>
+</div>
+
+<div class="layout">
+  <nav id="list"></nav>
+  <main id="content"></main>
+</div>
+
+<footer>Çıkmış sorular: 2022 Güz · 2023 Şube 1–2 · 2024 Güz · 2025 Yaz · STM32 sınavı — Çalışma kitabındaki çözümler esas alınmıştır.</footer>
+
+<script>
+/* ============================================================
+   SORU VERİTABANI — her adım: başlık + seslendirilecek metin + kod
+   ============================================================ */
+const QUESTIONS = [
+
+/* ---------- SORU 1: TEMELLER ---------- */
+{
+ grp:"Soru 1 · Temeller",
+ title:"ISA sınıfları: PIC16F877A hangi sınıfta?",
+ exam:["2023","2024","2025","STM32"], stars:3,
+ prompt:"PIC16F877A işlemcisi karmaşıklık türünden ve kod işleme biçimi türünden hangi ISA sınıflarına dahildir? Ayrıca STM32F401 için aynı sınıflar nedir?",
+ steps:[
+  {t:"Kavramı kur",
+   s:"Soruda iki ayrı ölçüt var. Birincisi karmaşıklık, ikincisi komut işleme biçimi. Karmaşıklıkta iki sınıf var: RISC ve CISC. Komut işleme biçiminde ise dördü var: bellek-bellek, bellek-kayıtçı, kayıtçı-bellek ve kayıtçı-kayıtçı. Önce bu tabloyu zihninde kur, sonra iki işlemciyi yerleştir."},
+  {t:"PIC16F877A'yı yerleştir",
+   s:"PIC16F877A, azaltılmış ve basit bir komut kümesine sahip, hemen her komut tek saat çevriminde biten bir işlemci. Bu yüzden karmaşıklık açısından RISC sınıfındadır. Komut işleme biçimine gelince: bir operandı dosya kayıtçısında, diğeri W ya da bellekte olabilir, yani komut doğrudan bellek erişimiyle işlem yapabilir. Bu Register Memory, yani kayıtçı-bellek mimarisidir.",
+   code:"PIC16F877A\n  Karmaşıklık        : RISC\n  Kod işleme biçimi  : Register-Memory (kayıtçı-bellek)\n  Bellek erişimi     : Harvard"},
+  {t:"STM32F401'ü yerleştir",
+   s:"STM32F401, ARM Cortex-M4 tabanlı. Yine RISC. Ama ALU işlemleri sadece kayıtçılar arasında yapılır, belleğe sadece Load ve Store komutları gider. Bu Register-Register, yani Load-Store mimarisidir. Bellek erişimi açısından Harvard mimarisindedir.",
+   code:"STM32F401 (Cortex-M4)\n  Karmaşıklık        : RISC\n  Kod işleme biçimi  : Register-Register (Load-Store)\n  Bellek erişimi     : Harvard"},
+  {t:"Ezber kalıbı",
+   s:"Hatırlatma şöyle: PIC yani eski mikrodenetleyiciler kayıtçı-bellek, yeni ARM Cortex-M işlemciler kayıtçı-kayıtçı. İki grup da RISC. Bellek erişimi olarak ikisi de Harvard. Bu dört cümleyi tekrar edersen bu blok sorusu biter."}
+ ],
+ answer:"PIC: RISC + Register-Memory · STM32F401: RISC + Register-Register (Load-Store) · ikisi de Harvard"
+},
+{
+ grp:"Soru 1 · Temeller",
+ title:"Mikromimari'nin 2 görevi ve ISA ilişkisi",
+ exam:["2024","2025","STM32"], stars:3,
+ prompt:"Bir işlemcinin mikromimarisi hangi 2 temel görevi gerçekleştirir? ISA mikromimariyi etkiler mi? Ayrıca aynı ISA'ya sahip işlemcilerin mikromimarileri farklı olabilir mi?",
+ steps:[
+  {t:"İki görev — bu iki cümleyi ezberle",
+   s:"Mikromimarinin iki görevi şudur. Bir: verilen komutları almak ve yorumlamak, yani çözümlemek. İki: komutların istediği işlemleri gerçekleştirmek, yani işlemek. Sınavda bu iki cümle aynen yazılır."},
+  {t:"ISA ilişkisi",
+   s:"ISA, komutları, parametreleri ve işleme biçimlerini tanımlayan soyut bir standarttır. Mikromimari ise o standartı gerçekleyen donanımdır. Bu yüzden ISA mikromimariyi şekillendirir, onu belirler."},
+  {t:"Aynı ISA farklı mikromimari olur mu?",
+   s:"Olur. Farklı üreticiler, fikri ve sınai haklar, performans veya fiyat gibi nedenlerle aynı ISA'yı çalıştıran farklı mikromimariler üretilebilir. Klasik örnek Intel ve AMD'in x86'sıdır. Sınavda bu üç kelimeyi yaz: farklı üreticiler, performans, fiyat."},
+  {t:"Bit sayısını ne belirler?",
+   s:"Bu konuyla birlikte sorulan ikinci soru: İşlemcinin kaç bitlik olduğunu ALU'nun bit sayısı belirler. ALU ise mikromimarinin ikinci görevi olan işlemleri gerçekleştirme göreviyle ilişkilidir."}
+ ],
+ answer:"Mikromimari = (1) komutları almak ve yorumlamak, (2) işlemleri gerçekleştirmek · ISA mikromimariyi şekillendirir · bit sayısını ALU belirler"
+},
+{
+ grp:"Soru 1 · Temeller",
+ title:"Stack (yığıt): amaç, yer, taşma, macro",
+ exam:["2022","2023","2024","2025"], stars:3,
+ prompt:"Bir işlemcide stack öncelikli olarak hangi amaçla kullanılır? Diğer kullanım amaçları nedir? Stack nerede tutulur? Stack taşması nedir? Macro'lar stack'i etkiler mi?",
+ steps:[
+  {t:"Öncelikli amaç — birinci cümle",
+   s:"Stack'in öncelikli amacı şudur: altprogram çağrısı veya kesme sırasında program sayıcısının, yani PC'nin değerini saklamak. Böylece işlem bitince program kaldığı yerden devam eder. Sınavda ilk cümleyi bununla başlat."},
+  {t:"Diğer kullanım",
+   s:"İkinci kullanım: altprogram çağrısında bozulacağı düşünülen kayıtçıların ve değişkenlerin saklanması. Yani yedekleme alanı."},
+  {t:"Nerede tutulur ve taşma",
+   s:"Stack RAM üzerinde tutulur. Çalışma sırası LIFO'dur, son giren ilk çıkar. Saklamaya PUSH, geri almaya POP denir. Stack taşması ise stack'in boyutuna sığmayacak kadar çok bilgi saklanmaya çalışılmasıdır, örneğin çok fazla iç içe çağrı."},
+  {t:"Macro etkiler mi? — sık sorulan tuzak",
+   s:"Hayır, macro stack'i etkilemez. Çünkü macro kodu çağrılan yere derleme sırasında kopyalanır, CALL yoktur, dolayısıyla stack'e hiçbir şey yazılmaz. Stack'i yalnızca altprogram yani CALL ve kesme komutları kullanır."},
+  {t:"Ek bilgi: PIC ve heap",
+   s:"PIC16F877'de stack 8 seviyelidir ve stack işaretçisine programdan erişilemez; yalnızca CALL, RETURN, RETFIE ve RETLW kullanır. Heap ile farkı ise şudur: stack PC değerini yedekler, heap ise geçici ve yerel değişkenler için kullanılır."}
+ ],
+ answer:"Temel amaç: PC'yi yedeklemek · RAM'de tutulur, LIFO · taşma = kapasite aşımı · macro stack'i etkilemez"
+},
+{
+ grp:"Soru 1 · Temeller",
+ title:"Adres yolu hesapları (32 MB → 24 bit)",
+ exam:["2022","2023","2024","2025"], stars:3,
+ prompt:"16 bitlik bir işlemci, 16 bitlik veri yolu üzerinden toplam 32 MB'lık bir veriyi adresleyebiliyorsa kaç adet adres yoluna sahip olmalıdır? Ayrıca 16 bit işlemci, 17 bit adres yolu ise Flash kaç KB? 32 bit adres yolu kaç GB?",
+ steps:[
+  {t:"Formülü kur",
+   s:"İki formül var. Kapasite eşittir kapı sayısı çarpı her kapıdaki byte. Kapı sayısı ise 2 üzeri N, yani adres yolu bit sayısı. Tersinden gideceğiz: önce kaç adres gerektiğini bulacağız, sonra 2'nin kaçıncı kuvveti olduğunu yazacağız."},
+  {t:"Her adreste kaç byte?",
+   s:"Veri yolu 16 bit ise her adreste 2 byte var, çünkü 16 bölü 8 eşittir 2. 32 MB'ı 2 byte'a bölelim: 32 MB bölü 2 eşittir 16 M adres. Yani 16 milyon adet kapı numarası gerekiyor."},
+  {t:"16 M'yi 2'nin kuvvetine çevir",
+   s:"16 M demek 2 üzeri 4 çarpı 2 üzeri 20 demek, çünkü 16 ise 2 üzeri 4 ve 1 M ise 2 üzeri 20. Üsler toplanır, 4 artı 20 eşittir 24. Demek ki 24 bit adres yolu gerekiyor. Cevap: 24 bit."},
+  {t:"Diğer iki kalıbı da pekiştir",
+   s:"İkinci kalıp: 16 bit işlemci, 17 bit adres yolu. 2 üzeri 17 eşittir 128 K adres, her adreste 2 byte, 128 K çarpı 2 eşittir 256 KB. Üçüncü kalıp: 32 bit adres yolu. 2 üzeri 32 eşittir 4 G adres, her adreste 1 byte ise 4 GB. Bunları ezbere değil, üsleri toplayarak çöz."},
+  {t:"Üç kavramı ayır",
+   s:"Dikkat: adres yolu kapı sayısını, veri yolu her kapıdaki veri miktarını, ALU ise işlemcinin kaç bitlik olduğunu belirler. Üçü birbirinden bağımsızdır. 2025'te sorulan ALU 16 bit, adres yolu 32 bit sorusunda işlemci 16 bit, adreslenen bellek 4 GB çıkmıştı."}
+ ],
+ answer:"32 MB / 2 byte = 16M = 2^24 → 24 bit adres yolu · 17 bit → 256 KB · 32 bit → 4 GB"
+},
+{
+ grp:"Soru 1 · Temeller",
+ title:"MPU vs MCU, Cortex-A vs Cortex-M",
+ exam:["2022","STM32"], stars:2,
+ prompt:"Mikroişlemciler ile mikrodenetleyiciler arasındaki fark nedir? Hangi durumda mikroişlemciler tercih edilir? Cortex-A ile Cortex-M arasındaki temel fark nedir, gömülü sistemler için hangisi uygundur?",
+ steps:[
+  {t:"MPU — mikroişlemci",
+   s:"MPU yani mikroişlemci, genelde içinde bellek ve çevre birimi barındırmaz. Dış belleklerle çalışacak şekilde tasarlanmıştır, bu yüzden içinde bellek yönetim birimi, kısaca MMU bulunur. Gelişmiş işletim sistemi isteyen, yüksek hızlı, genel amaçlı uygulamalarda kullanılır."},
+  {t:"MCU — mikrodenetleyici",
+   s:"MCU yani mikrodenetleyici ise bellek ve çevre birimlerini kendi içinde barındırır. Yazılım iç bellekten çalışır. Küçük, son kullanıcı sistemlerinde, yani gömülü sistemlerde tercih edilir."},
+  {t:"Cortex-A ve Cortex-M karşılığı",
+   s:"Aynı farkın ARM ayağı: Cortex-A dış bellek gerektiren, yüksek hızlı genel amaçlı uygulama işlemcisidir. Cortex-M ise belleğini içinde barındıran gömülü sistem işlemcisidir. Gömülü sistem için uygun olan Cortex-M'dir."},
+  {t:"Tek cümlelik ezber",
+   s:"İçinde MMU varsa ve dış bellek istiyorsa MPU yani işlemci, her şeyi içinde taşıyorsa MCU yani gömülü. Gömülü sistem = MCU = Cortex-M."}
+ ],
+ answer:"MPU: dış bellek + MMU, genel amaçlı · MCU: bellek ve çevre birimi içinde, gömülü sistemler için · gömülü = Cortex-M"
+},
+{
+ grp:"Soru 1 · Temeller",
+ title:"Bellek türleri: SRAM, Flash, EEPROM",
+ exam:["2022","2023","2025"], stars:2,
+ prompt:"Flash, statik RAM ve EEPROM belleklerden hangisi daha hızlı çalışır, hangisinin yazma ömrü sınırlıdır? Bir programda her birinin hangi amaçla kullanıldığını açıklayınız.",
+ steps:[
+  {t:"Hız sıralaması",
+   s:"En hızlı bellek SRAM'dir, yani statik RAM. Değişkenler ve özel fonksiyon kayıtçıları orada tutulur, stack de RAM'dedir. Enerji kesilince içeriği kaybolur."},
+  {t:"Kalıcılık ve ömür",
+   s:"Flash ve EEPROM kalıcı belleklerdir, enerji kesilse de değer korunur. İkisinin de yazma ömrü sınırlıdır. Bu yüzden sınavda hangisinin ömrü sınırlı dersen Flash ve EEPROM dersin, SRAM'in ömrü sınırsızdır."},
+  {t:"Ne nerede?",
+   s:"Flash'da program kodları ve sabitler durur. EEPROM'da ise saklanması gereken ama kullanıcı tarafından değiştirilebilen parametreler durur, örneğin ayarlar ve kalibrasyon değerleri."},
+  {t:"Hocanın 2025 tuzağı",
+   s:"Dikkat: hocanın 2025 çözümünde yazma ömrü için yalnızca SRAM'in sonsuz olduğu söylenmiş. Sınavda Flash ve EEPROM'un yazma ömrünün de sınırlı olduğunu yazman gerekir."}
+ ],
+ answer:"En hızlı: SRAM (ömür sınırsız) · Flash: kod ve sabitler, ömür sınırlı · EEPROM: ayar/kalibrasyon, ömür sınırlı"
+},
+{
+ grp:"Soru 1 · Temeller",
+ title:"Harvard / Von Neumann, MPASM, STM32 bilgileri",
+ exam:["2022","2023","STM32"], stars:2,
+ prompt:"Harvard mimarisinde kaç adres yolu gerekir? MPLAB'da assembler yazmak için hangi tool suite seçilir? STM32F401'ü kim üretir, seri haberleşme birimlerinden 3'ünü yazınız.",
+ steps:[
+  {t:"Harvard kaç yol?",
+   s:"Harvard mimarisinde komut ve veri ayrı belleklerde tutulur ve ikisine aynı anda erişilir. Bu yüzden 2 adres yolu gerekir: biri program belleği için, biri veri belleği için. Von Neumann'da ise tek ortak bellek ve tek yol vardır, daha yavaştır ama yapısal olarak basittir."},
+  {t:"MPASM tool suite",
+   s:"MPLAB'da assembler yazmak için MPASM tool suite seçilir. İçinde üç şey vardır: assembler yani derleyici, linker yani bağlayıcı ve librarian yani kütüphane derleyicisi. Bu üçlüyü aynen yaz."},
+  {t:"STM32 bilgileri",
+   s:"STM32F401 STMicroelectronics tarafından üretilir, mikromimari Cortex-M4'tür. Diğer MCU üreticileri olarak NXP ve TI yazılır. Seri haberleşme birimleri üçlüsü ise USART, SPI ve I2C'dir."},
+  {t:"Ek: Harvard örneği",
+   s:"Harvard mimarisini tanımlayan cümle şu: komut ve veriyi ayrı belleklerde tutarak her ikisine aynı anda erişebilmek. Von Neumann: komut ve veriyi tek ortak bellekte tutmak ve aynı veri yolunu paylaşmak."}
+ ],
+ answer:"Harvard: 2 adres yolu · MPASM: assembler + linker + librarian · STM32: STMicroelectronics · USART, SPI, I2C"
+},
+
+/* ---------- SORU 2: SAYILAR VE YAZILIM ---------- */
+{
+ grp:"Soru 2 · Sayılar ve Yazılım",
+ title:"Bit işlemi: 5. biti tersleme / silme / yakma",
+ exam:["2023","2025","STM32"], stars:3,
+ prompt:"8 bitlik bir sayının diğer bitlerine dokunmadan 5. bitini terslemek için gerekli işlemi yazınız. 2025'te: 5. biti 0, 2. biti 1 yapmak. Ayrıca 16 bitlik sayının 2. bitini 0, 12. bitini 1 yapmak.",
+ steps:[
+  {t:"Bit numaralandırması — her şey buna bağlı",
+   s:"Bitler sağdan sola sıfırdan numaralanır: en sağdaki bit 0, bir soldaki bit 1, iki soldaki bit 2. Beşinci bit derken bit dördü, yani 1 bölü 2 üssü dört eşittir 16, onaltılıkta 0x20. Ama sınavda '2. bit' denince hoca çoğunlukla bit biri yani 0x02'yi kasteder — burada dikkatli ol, sonra söyleyeceğim."},
+  {t:"Üç ezber kalıbı",
+   s:"Üç kalıp var. Bir: biti 1 yapmak için veya işlemi, X eşittir X veya parantez 1 sola kaydır n. İki: biti 0 yapmak için ve işlemi, X eşittir X ve parantez eksi parantez 1 sola kaydır n. Üç: biti ters çevirmek için dışlama işlemi, X eşittir X dışla parantez 1 sola kaydır n."},
+  {t:"5. biti tersleme — 2023 sorusu",
+   s:"Tersleme dışlama ile yapılır. 5. bitin maskesi 0010 0000, onaltılıkta 0x20. Yani işlem şu: X eşittir X dışla 0x20. Örnek olarak 1100 0110 dışla 0010 0000 eşittir 1110 0110 — sadece beşinci bit değişti, diğerleri aynen duruyor."},
+  {t:"5. biti 0, 2. biti 1 yapma — 2025 sorusu",
+   s:"5. biti sıfırlamak silme gerektirir, ve işlemi kullanılır. Maske: 5. bit 0, diğerleri 1, yani 1101 1111, onaltılıkta 0xDF. A eşittir A ve 0xDF. 2. biti yakmak için ise veya işlemi: maske sadece 2. biti 1, 0000 0100, yani 0x04. A eşittir A veya 0x04. İki işlem yan yana yazılır.",
+   code:"A = A & 0xDF   ; 5. biti 0 yap (silme maskesi 1101 1111)\nA = A | 0x04   ; 2. biti 1 yap (yakma maskesi 0000 0100)"},
+  {t:"16 bitlik versiyon — 2023 Şube 1",
+   s:"16 bitlik X'in 2. biti silinecek: maske 1111 1111 1111 1011, onaltılıkta 0xFFFB. 12. biti yakılacak: 0001 0000 0000 0000, yani 0x1000. Sonuç: X eşittir parantez X ve 0xFFFB kapanış parantezi veya 0x1000."},
+  {t:"Hocanın çözümlerindeki hata — sınav avantajın",
+   s:"Hocanın 2025 çözümünde 2. bit için 0x02 yazılmış, 2023 Şube 1 çözümünde 2. bit silmek için 0xFFFD. Bunlar aslında 1. biti gösteriyor. Bitleri sıfırdan sayarsan doğrusu 0x04 ve 0xFFFB'dir. Sınavda bit sayımını hep sıfırdan yaparsan bu tuzağa düşmezsin."}
+ ],
+ answer:"Tersleme: X ^= 0x20 · Silme: X &= ~0x20 · Yakma: X |= mask · bit sıfırdan sayılır"
+},
+{
+ grp:"Soru 2 · Sayılar ve Yazılım",
+ title:"Hex bit hesabı: !(0x15) & 0xAA ve benzerleri",
+ exam:["2022","2023","2024","STM32"], stars:3,
+ prompt:"Y = !(0x15) & 0xAA işleminin sonucunu hex yazınız. Ayrıca: (0x22 | 0x05) & 0xFB, y = 0x37 & ~((1<<4)|(1<<2)), PORTC = 0x27 ^ 0xAA, A = 0xF0 üzerinden bit işlemleri.",
+ steps:[
+  {t:"Önce hex'i bite çevir",
+   s:"Hex rakamı bite çevirmek için ağırlıklar 8-4-2-1. 0x15 demek 0001 0101. 0xAA demek 1010 1010. Her rakamı ayrı ayrı dörde çevir, yan yana yaz."},
+  {t:"2023 Şube 2: !(0x15) & 0xAA",
+   s:"0x15'in bit tersi 1110 1010. Şimdi ve işlemini yapalım: 1110 1010 ile 1010 1010'ın ve'isi, bit bit: birler eşleşen yerlerde 1, yani 1010 1010. Cevap 0xAA. Hoca burada ünlem işaretini bit tersi gibi kullanmış, gerçek C'de farklı çalışır ama sınavda hocanın yorumuna uy.",
+   code:"0x15  = 0001 0101\ntersi = 1110 1010\n0xAA  = 1010 1010\n  &   = 1010 1010  -> 0xAA"},
+  {t:"2024: y = 0x37 & ~((1<<4)|(1<<2))",
+   s:"Önce iç parantez: 1 sola kaydır 4 yani 0001 0100, veya 1 sola kaydır 2 yani 0000 0100. Vefi: 0001 0100. Tersi alalım: 1110 1011 — bu bir silme maskesi. Şimdi 0x37 yani 0011 0111 ile ve'leyelim: sonuç 0010 0011, yani 0x23.",
+   code:"(1<<4)|(1<<2) = 0001 0100\n~ (ters)      = 1110 1011\n0x37          = 0011 0111\n  &           = 0010 0011  -> 0x23"},
+  {t:"2023 Şube 1: (0x22 | 0x05) & 0xFB",
+   s:"Önce veya: 0010 0010 ile 0000 0101'in vefi 0010 0111. Sonra bunu 0xFB yani 1111 1011 ile ve'leyelim: 0010 0011, yani 0x23. İşlem sırası parantezdedir, önce veya, sonra ve."},
+  {t:"2025 Yaz: 0x27 ^ 0xAA ve STM32: A = 0xF0",
+   s:"0x27 dışla 0xAA: 0010 0111 dışla 1010 1010 eşittir 1000 1101, yani 0x8D. XOR'da bitler farklıysa 1 olur. Diğerinde A eşittir 0x1111 0000. 6. biti sil: 1011 0000. 1. biti yak: 1011 0010, yani 0xB2."},
+  {t:"Çıkarma yerine toplama — 2022 sorusu",
+   s:"76 eksi 27 işlemini ikiye tümleyen ile yapacaksın. Bir sayının negatifi, tersi artı 1'dir. 27'nin tersi 1110 0100, artı 1 yap 1110 0101. Şimdi 76 yani 0100 1100 ile topla: sonuç 1 0011 0001. En soldaki taşan bit atılır, kalan 0011 0001 eşittir 49. Doğru cevap 49."}
+ ],
+ answer:"!(0x15)&0xAA = 0xAA · 0x37 işlemi = 0x23 · (0x22|0x05)&0xFB = 0x23 · 0x27^0xAA = 0x8D · A = 0xB2 · 76−27 = 49"
+},
+{
+ grp:"Soru 2 · Sayılar ve Yazılım",
+ title:"Döndürme (rotate): 0x11'i 2 kez sağa",
+ exam:["2022","2025"], stars:2,
+ prompt:"PORTD'nin değeri 0x11 ise art arda 2 kere sağa döndürme yapılırsa yeni değer ne olur? Ayrıca 0x35'i 3 kez sağa, 0x81'i 1 kez sola döndürünüz.",
+ steps:[
+  {t:"Döndürme ile kaydırmanın farkı",
+   s:"Döndürmede dışarı çıkan bit kaybolmaz, diğer uçtan içeri girer — bitler çember gibi döner. Kaydırmada ise çıkan bit kaybolur ve boşalan yere sıfır gelir. Sınavda 'döndürme' yazıyorsa çember, 'kaydırma' yazıyorsa sıfır doldur."},
+  {t:"Adım adım: 0x11'i 2 kez sağa",
+   s:"0x11 demek 0001 0001. İlk sağa döndürmede en sağdaki 1 en sola gelir: 1000 1000. İkinci döndürmede yine en sağdaki 1 sola geçer: 0100 0100. Cevap 0x44."},
+  {t:"Pekiştirme: 0x35'i 3 kez sağa",
+   s:"0x35 eşittir 0011 0101. Birinci turda 1001 1010, ikinci turda 0100 1101, üçüncü turda 1010 0110. Cevap 0xA6. Her turda tek bit sağdan sola taşınır, geri kalanlar bir basamak sağa kayar."},
+  {t:"Sola döndürme: 0x81",
+   s:"0x81 eşittir 1000 0001. Sola döndürmede en soldaki 1 en sağa geçer: 0000 0011, yani 0x03."},
+  {t:"PIC assembly'deki gerçek hâli",
+   s:"Dikkat: PIC'te RRF ve RRF komutları 8 bit değil, Carry bitiyle birlikte 9 bitlik bir halka üzerinde döndürür. Sınavda saf döndürme soruluyorsa yukarıdaki yöntemle çöz, assembly analizinde ise Carry'nin başlangıç değerine dikkat et."}
+ ],
+ answer:"0x11 → 2 kez sağa = 0x44 · 0x35 → 3 kez sağa = 0xA6 · 0x81 → 1 kez sola = 0x03"
+},
+{
+ grp:"Soru 2 · Sayılar ve Yazılım",
+ title:"Timer1 hesabı — formül kartı",
+ exam:["2023","2024","2025"], stars:3,
+ prompt:"Fosc = 4 MHz, prescaler = 1 ise 16 bit TIMER1 ile en fazla ne kadar gecikme sağlanabilir? Ayrıca 2 MHz, prescaler 4 iken 200 ms için sayaç değeri ve 125 kHz beslemeli Timer1'e 0,5 saniyelik kesme için başlangıç değeri.",
+ steps:[
+  {t:"Formül kartı — dört satır",
+   s:"Önce formülleri ezberle. Tclk eşittir Fosc bölü 4, bölü prescaler. Sayım eşittir süre çarpı Tclk. Başlangıç değeri eşittir 65536 eksi sayım. En uzun gecikme ise 65536 bölü Tclk. Timer yukarı sayar ve 65536'ya ulaşınca taşar."},
+  {t:"2024 sorusu: en uzun gecikme",
+   s:"Fosc 4 MHz, prescaler 1. Tclk eşittir 4 MHz bölü 4 eşittir 1 MHz. Yani sayaç saniyede bir milyon kez artar. 0'dan 65536'ya ulaşma süresi: 65536 bölü 1.000.000 eşittir 0,0655 saniye, yani 65,5 milisaniye. Cevap 65,5 ms."},
+  {t:"2025 Yaz: 200 ms için başlangıç",
+   s:"Fosc 2 MHz, prescaler 4. Tclk eşittir 2 MHz bölü 4 bölü 4 eşittir 125 kHz. 200 milisaniye yani 0,2 saniye: 0,2 çarpı 125.000 eşittir 25.000 sayım. Başlangıç: 65536 eksi 25.000 eşittir 40.536, onaltılıkta 0x9E58."},
+  {t:"2023 Şube 1: TMR1H ve TMR1L kodu",
+   s:"125 kHz ile 0,5 saniyelik kesme: 0,5 çarpı 125.000 eşittir 62.500 sayım. 65536 eksi 62.500 eşittir 3036. Bunu onaltılığa çevir: 3036 eşittir 0x0BDC. Üst byte TMR1H'e, alt byte TMR1L'e yazılır. Kod şöyle başlar: Bank 0'a geç, sonra MOVLW 0x0B, MOVWF TMR1H, MOVLW 0xDC, MOVWF TMR1L.",
+   code:"BCF   STATUS,RP0\nBCF   STATUS,RP1   ; Bank 0\nMOVLW 0x0B\nMOVWF TMR1H        ; TMR1H = 0x0B\nMOVLW 0xDC\nMOVWF TMR1L        ; TMR1L = 0xDC"},
+  {t:"Hex'e çevirme hilesi",
+   s:"Büyük sayıları hex'e çevirirken bölme yap: başlangıç değerini 256'ya böl, bölüm üst byte olur, kalan alt byte olur. Örnek: 53.036 bölü 256 eşittir 207, kalan 44. 207 onaltılıkta 0xCF, 44 onaltılıkta 0x2C. Yani TMR1H = 0xCF ve TMR1L = 0x2C. Bu değer 100 milisaniyelik kesme verir."},
+  {t:"Ters yön sorusu",
+   s:"Fosc 4 MHz, prescaler 1, yani Tclk 1 MHz. Timer'e 0x3CB0 yüklenmiş. 0x3CB0 ondalıkta 15.536. Sayım: 65536 eksi 15.536 eşittir 50.000. Süre: 50.000 bölü 1.000.000 eşittir 50 milisaniye. Yani taşma 50 ms sonra olur."}
+ ],
+ answer:"Tclk=(Fosc/4)/prescaler · 4MHz/1: → 65,5 ms · 0,5s/125kHz → 3036 = 0x0BDC · 53036 → 0xCF2C"
+},
+{
+ grp:"Soru 2 · Sayılar ve Yazılım",
+ title:"Yığıt, macro, ASCII, ön işleme direktifleri",
+ exam:["2022","2023","2024"], stars:2,
+ prompt:"Macro ile altprogram arasındaki fark nedir, ikisinde de stack kullanılır mı? ASCII'de kaç karakter vardır? #ifdef ve #if bloklarında hangi kod parçaları derlenir?",
+ steps:[
+  {t:"Macro vs altprogram",
+   s:"Macro, assembler derleme sırasında çağrıldığı yere kod olarak açılır, yani kopyalanır. CALL ve RETURN yoktur, stack kullanılmaz, kod büyür. Altprogram ise CALL ile çağrılır, RETURN ile döner, dönüş adresi stack'e yazılır yani stack kullanılır ve kod bellekte bir kez durur. Cevap: ikisinde de stack kullanılmaz, sadece altprogramda kullanılır."},
+  {t:"ASCII",
+   s:"Temel ASCII 7 bittir ve 128 karakter içerir, 0'dan 127'ye. Genişletilmiş kısımda 8 bit kullanılır ama genişletilmiş kısımdaki semboller yazılım ortamına göre değişir, yani hepsi standart değildir. Sınavda '128 karakter, standart değil' cümlesini yaz."},
+  {t:"Ön işleme: VALUE 0x15 ise",
+   s:"#ifdef VALUE bloğu: VALUE tanımlı olduğu için CodePart4 derlenir. Sonra #if VALUE ve parantez 1 sola kaydır 2 parantezi: 0x15 ile 0x04'ün ve'isi 0x04, sıfırdan farklı yani doğru. Bu yüzden CodePart1 derlenir. #elseif'e girilmez. Cevap: CodePart4 ve CodePart1 derlenir.",
+   code:"#ifdef VALUE      -> VALUE tanımlı : CodePart4\n#if (VALUE & (1<<2))\n  0x15 & 0x04 = 0x04 -> dogru : CodePart1"},
+  {t:"y = y & ~((1<<4)|(1<<2)) hesabı",
+   s:"0x37 eşittir 0011 0111. İç parantez 0001 0100, tersi 1110 1011. Ve işleminde: 0010 0011, yani 0x23. Bunu önceki soruyla karıştırma, 2024'ün kendi sorusu bu ve cevabı 0x23."}
+ ],
+ answer:"Macro stack'i etkilemez · ASCII 128 karakter · CodePart4 + CodePart1 derlenir · 0x37 işlemi = 0x23"
+},
+
+/* ---------- SORU 3: YAZILIM ANALİZİ ---------- */
+{
+ grp:"Soru 3 · Yazılım Analizi",
+ title:"RRF'li PORTD programı → 0x1B (2023 Şube 2)",
+ exam:["2023 Şube 2"], stars:3,
+ prompt:"Aşağıdaki yazılımı analiz ederek yapılan işleri açıklayınız. Program sonunda PORTD'nin değeri kaç olur?",
+ code:"BCF   STATUS,RP1\nBSF   STATUS,RP0\nCLRF  TRISD\nBCF   STATUS,RP0\nMOVLW 0x12\nMOVWF PORTD\nRRF   PORTD,1\nBTFSC PORTD,4\nINCF  PORTD,1\nADDWF PORTD,1",
+ steps:[
+  {t:"Adım 1 — banka kontrolü",
+   s:"Analize banka geçişleriyle başla. BCF STATUS,RP1 ve BSF STATUS,RP0 demek RP1RP0 eşittir 01, yani Bank 1'e geçildi. Bank 1'de TRISD var. CLRF TRISD eşittir sıfır, yani PORTD tamamı çıkış yapıldı. Sonra BCF STATUS,RP0 ile Bank 0'a dönüldü, çünkü PORT kayıtçısı Bank 0'dadır."},
+  {t:"Adım 2 — değeri yaz",
+   s:"MOVLW 0x12, W'ye 0x12 yükler. MOVWF PORTD, W'yi PORTD'ye yazar, W değişmez. PORTD şu an 0001 0010. W hâlâ 0x12, bunu unutma çünkü en sonunda ADDWF gelecek."},
+  {t:"Adım 3 — RRF: sağa döndürme",
+   s:"RRF PORTD,1 komutu PORTD'yi sağa döndürür ve sonucu dosyaya yazar. Carry 0 varsayımıyla 0001 0010 sağa döner: en sağdaki 0 çıkar, en sola Carry yani 0 gelir, sonuç 0000 1001 eşittir 0x09. Hocanın çözümü Carry'nin 0 olduğunu varsayıyor, buna not olarak dikkat et."},
+  {t:"Adım 4 — BTFSC atlaması",
+   s:"BTFSC PORTD,4 demek: PORTD'nin 4. biti 0 ise sonraki komutu atla. 0x09 eşittir 0000 1001. Bit 4, beşinci basamaktır ve burada 0. Yani EVET, sıradaki INCF PORTD,1 komutu ATLANIR."},
+  {t:"Adım 5 — toplama ve sonuç",
+   s:"INCF atlandığı için doğrudan ADDWF PORTD,1 çalışır: PORTD eşittir W artı PORTD. W hâlâ 0x12, PORTD 0x09. 0x12 artı 0x09 eşittir 0x1B. Cevap: PORTD eşittir 0x1B.",
+   code:"0x12 + 0x09 = 0x1B   ->  PORTD = 0x1B"},
+  {t:"Yöntem özeti",
+   s:"Bu programın sonucu şu dört kurala bağlı: bankaya bak, W'yi adım adım yaz, RRF'yi Carry dahil uygula, BTFSC'de bit sıfırdan say. Son satırda ise programın amacını tek cümlede yaz: port çıkış yapılıyor, değer kaydırılıyor ve koşullu olarak artırılıp toplanıyor."}
+ ],
+ answer:"PORTD = 0x1B"
+},
+{
+ grp:"Soru 3 · Yazılım Analizi",
+ title:"ANDWF ve XORWF'li PORTD → 0x12 (2023 Şube 1)",
+ exam:["2023 Şube 1"], stars:3,
+ prompt:"Aşağıdaki yazılımın her bölümünün işlevini açıklayınız. Program sonunda PORTD'nin değeri kaç olur?",
+ code:"BSF   STATUS,RP0\nCLRF  TRISD\nBCF   STATUS,RP0\nMOVLW 0x85\nMOVWF PORTD\nMOVLW 0x16\nANDWF PORTD,1\nBTFSC PORTD,4\nINCF  PORTD,1\nXORWF PORTD,1",
+ steps:[
+  {t:"Adım 1 — ilklendirme",
+   s:"BSF STATUS,RP0 ile Bank 1'e geçilir, CLRF TRISD ile PORTD çıkış yapılır, sonra Bank 0'a dönülür. MOVLW 0x85 ve MOVWF PORTD ile PORTD eşittir 1000 0101."},
+  {t:"Adım 2 — ANDWF, W değişmez",
+   s:"MOVLW 0x16, W eşittir 0001 0110. ANDWF PORTD,1 komutu W ile PORTD'nin ve'ini alır ve sonucu dosyaya, yani PORTD'ye yazar. 0001 0110 ve 1000 0101 eşittir 0000 0100, yani PORTD eşittir 0x04. Kritik nokta: hedef 1 olduğu için sonuç dosyaya yazıldı, W hâlâ 0x16 olarak duruyor."},
+  {t:"Adım 3 — BTFSC yine atlatıyor",
+   s:"BTFSC PORTD,4: PORTD 0x04 eşittir 0000 0100. Bit 4 sıfır, yani sonraki komut INCF atlanır."},
+  {t:"Adım 4 — XORWF ve sonuç",
+   s:"XORWF PORTD,1: W dışla PORTD. W hâlâ 0x16, PORTD 0x04. 0001 0110 dışla 0000 0100 eşittir 0001 0010, yani 0x12. Cevap: PORTD eşittir 0x12.",
+   code:"W = 0x16 (degismez)\n0x16 & 0x85 = 0x04  -> PORTD\n0x16 ^ 0x04 = 0x12  -> PORTD = 0x12"},
+  {t:"Tuzak: W'yi takip et",
+   s:"Bu sorunun asıl tuzağı W'nin nerede değiştiğini kaybetmemek. MOVWF W'yi değiştirmez, ANDWF f,1 gibi d equals 1 komutları sonucu dosyaya yazar ve W aynı kalır. Tabloyu her adımda iki sütun halinde yaz: bir sütun W, bir sütun PORTD."}
+ ],
+ answer:"PORTD = 0x12"
+},
+{
+ grp:"Soru 3 · Yazılım Analizi",
+ title:"1'leri sayan program → Val3 = 3 (2024)",
+ exam:["2024"], stars:2,
+ prompt:"Aşağıdaki assembler yazılımda myfunction fonksiyonu ne iş yapar? Val1 = 0x25 ise Val3 ne olur?",
+ steps:[
+  {t:"Programın mantığı",
+   s:"Program incelenirse Val1 değeri Val2 ile ve işleminde tabi tutuluyor. Eğer sonuç sıfırdan farklı olursa Val3 bir artırılıyor. İşlem sonrasında Val2 bir kez sola kaydırılıyor ve işlem Val2'deki 1 değeri 7. bite ulaşana, yani Val2 0x80 olana kadar devam ediyor."},
+  {t:"Ne iş yapıyor?",
+   s:"Demek ki fonksiyon Val1 içindeki 1'leri sayıyor. Her turda bir biti test ediyor, 1 ise sayacı artırıyor ve sıradaki bite geçiyor."},
+  {t:"0x25 için hesap",
+   s:"0x25 onaltılığı ikiliye çevirelim: 0010 0101. İçinde 1 olan bit sayısı: bir, iki, üç. Yani Val3 eşittir 3. Cevap: Val3 = 3.",
+   code:"0x25 = 0010 0101  -> 3 adet 1  ->  Val3 = 3"},
+  {t:"Aynı mantığın kendi yazabileceğin hâli",
+   s:"Sınavda aynı mantığı yazman istenirse döngüyle çözersin: sayaç 8'e ayarlanır, her turda BTFSC Sayi,0 en sağ bit 1 ise Adet'i artırır, sonra RRF sayıyı sağa döndürür, DECFSZ ile sayaç azaltılır. Sekiz tur sonunda 8 bitin hepsi test edilmiş olur."}
+ ],
+ answer:"Fonksiyon Val1'deki 1'leri sayar · Val1 = 0x25 → Val3 = 3"
+},
+{
+ grp:"Soru 3 · Yazılım Analizi",
+ title:"Çarpma döngüsü → DEGER × 10 (2025 Yaz)",
+ exam:["2025 Yaz"], stars:2,
+ prompt:"Aşağıda verilen fonksiyon ne iş yapar? Amacı nedir?",
+ code:"FONKSIYON\n        MOVLW 9\n        MOVWF SAYAC\n        MOVF  DEGER,0\nTEKRAR  ADDWF DEGER,1\n        DECFSZ SAYAC,1\n        GOTO  TEKRAR\n        RETURN",
+ steps:[
+  {t:"Döngü öncesi hazırlık",
+   s:"MOVLW 9, W eşittir 9. MOVWF SAYAC, SAYAC eşittir 9. MOVF DEGER,0 ise W'yi DEGER'in değeriyle dolduruyor ve döngü boyunca W hiç değişmiyor. Bu çok önemli: W orijinal değer olarak sabit kalacak."},
+  {t:"Döngü ne yapıyor?",
+   s:"TEKRAR etiketinde ADDWF DEGER,1 her seferinde DEGER'e W'nin, yani orijinal değerin kendisini ekliyor. Sonra DECFSZ SAYAC,1 sayacı azaltır, sıfır olana kadar GOTO TEKRAR ile döngüye döner."},
+  {t:"Kaç kez ekleniyor?",
+   s:"SAYAC 9 ile başlıyor, DECFSZ toplamda 9 kez eklemeye izin veriyor. Yani DEGER artı 9 çarpı DEGER eşittir 10 çarpı DEGER. Fonksiyon DEGER'i toplama yaparak 10 ile çarpar."},
+  {t:"Örnek ve tuzak",
+   s:"DEGER 3 ise sonuç 30, onaltılıkta 0x1E. Tuzak şudur: sayaç 9 ise 10 katı, 7 ise 8 katı çıkar. Yani sonuç SAYAC artı 1 katıdır. Sınavda sayaç değerini mutlaka oku."}
+ ],
+ answer:"Fonksiyon DEGER'i 10 ile çarpar (SAYAC + 1 katı) · DEGER = 3 → 30"
+},
+{
+ grp:"Soru 3 · Yazılım Analizi",
+ title:"Carry ile karşılaştırma: PORTD = 1 veya 2",
+ exam:["Yeni"], stars:2,
+ prompt:"Program sonunda W, C bayrağı ve PORTD ne olur? Program ne iş yapar?",
+ code:"MOVLW 10\nMOVWF SAYI\nMOVLW 15\nSUBWF SAYI,0\nBTFSC STATUS,C\nGOTO  BUYUK\nMOVLW 1\nMOVWF PORTD\nGOTO  SON\nBUYUK   MOVLW 2\n        MOVWF PORTD\nSON     GOTO  SON",
+ steps:[
+  {t:"SUBWF yönüne dikkat",
+   s:"SUBWF SAYI,0 komutu SAYI eksi W hesaplar ve sonucu W'ye yazar, yani dosya eksi W, W eksi dosya değil. SAYI 10, W 15 olduğundan 10 eksi 15 eşittir eksi 5, ikiye tümleyenle 0xFB. Yani W eşittir 0xFB."},
+  {t:"Çıkarmada Carry ters çalışır",
+   s:"Kritik kural: çıkarmada borrow yoksa C eşittir 1, borrow varsa C eşittir 0. Burada negatif sonuç çıktı, yani borrow var, demek ki C eşittir 0."},
+  {t:"BTFSC ile dallanma",
+   s:"BTFSC STATUS,C: C 0 ise sonraki komutu atlar. C 0 olduğu için GOTO BUYUK ATLANIR. Bu yüzden MOVLW 1 ve MOVWF PORTD çalışır. PORTD eşittir 1. Sonra GOTO SON ile programın sonuna gelinir."},
+  {t:"Programın anlamı",
+   s:"Program SAYI ile 15'i karşılaştırır: SAYI 15'ten büyük veya eşitse PORTD eşittir 2, küçükse PORTD eşittir 1. Cevap: W = 0xFB, C = 0, PORTD = 1."}
+ ],
+ answer:"W = 0xFB · C = 0 · PORTD = 1 · program SAYI ile 15'i karşılaştırır"
+},
+
+/* ---------- SORU 4: YAZILIM GELİŞTİRME ---------- */
+{
+ grp:"Soru 4 · Yazılım Geliştirme",
+ title:"0xA5 adresindeki bilginin tersini 0x22'ye yaz",
+ exam:["2023 Şube 2"], stars:3,
+ prompt:"PIC16F877A işlemcide belleğin 0xA5 adresinde bulunan bilginin tersini alarak belleğin 0x22 adresine yazan altprogramı PIC assembler dilinde yazınız.",
+ steps:[
+  {t:"Neden banka geçişi gerekiyor?",
+   s:"0xA5 adresi Bank 1'dedir, çünkü Bank 1'in aralığı 0x80 ile 0xFF arasındadır. 0x22 adresi ise Bank 0'dadır, çünkü Bank 0 0x00 ile 0x7F. Yani önce Bank 1'e geçip okuyacağız, sonra Bank 0'a geçip yazacağız. Bu banka zıplaması sorunun tam kalbidir."},
+  {t:"Adım adım kod",
+   s:"Önce BSF STATUS,RP0 ve BCF STATUS,RP1 ile Bank 1'e geç. MOVF 0xA5,0 ile o adresin değerini W'ye al. XORLW 0xFF ile W'nin tüm bitlerini ters çevir. Sonra BCF STATUS,RP0 ile Bank 0'a dön ve MOVWF 0x22 ile sonucu yaz.",
+   code:"BSF   STATUS,RP0   ; Bank 1 sec\nBCF   STATUS,RP1\nMOVF  0xA5,0       ; W = (0xA5)\nXORLW 0xFF         ; W = ~W (ters)\nBCF   STATUS,RP0   ; Bank 0'a don\nMOVWF 0x22         ; (0x22) = W"},
+  {t:"Kısa alternatif",
+   s:"COMF komutu da doğrudan tersler. Bank 1'deyken COMF 0xA5,0 yazarsan tersi W'ye gelir, sonra Bank 0'a geçip MOVWF 0x22 yaparsın. Bu daha kısa ama hocanın çözümü XORLW yoludur, ikisi de tam puan alır."},
+  {t:"İki farklı soru arasındaki fark",
+   s:"Dikkat: soru '0xA5 adresindeki bilgi' diyorsa yukarıdaki doğru. Eğer '0xA5 sayısının tersi' deseydi adres aramana gerek kalmazdı: MOVLW 0xA5, XORLW 0xFF, yani sonuç 0x5A, sonra MOVWF 0x22. Kelimeyi iyi oku: adres mi, sayı mı?"}
+ ],
+ answer:"Bank1 → MOVF 0xA5,0 → XORLW 0xFF → Bank0 → MOVWF 0x22 · alternatif: COMF 0xA5,0"
+},
+{
+ grp:"Soru 4 · Yazılım Geliştirme",
+ title:"PORTB / PORTD yönü ve pull-up ayarı",
+ exam:["2023 Şube 2"], stars:3,
+ prompt:"PORTB'nin 4. ve 5. uçlarını giriş, geri kalan uçlarını çıkış; PORTD'nin ilk 3 bitini çıkış, geri kalan uçlarını giriş yapan ve PORTB'nin giriş uçlarını pull-up yapan yazılım parçasını yazınız.",
+ steps:[
+  {t:"TRIS mantığı — ezberle",
+   s:"TRIS kayıtçısında 1 giriş demektir, 0 çıkış demektir. Ve TRIS ile OPTION_REG Bank 1'dedir, bu yüzden Bank 1'e geçmek zorundayız."},
+  {t:"TRISB maskesi: 0x30",
+   s:"Sadece 4. ve 5. bitler 1 olacak, diğerleri 0. Bitleri sıfırdan say: bit 0, 1, 2, 3 çıkış yani 0; bit 4 ve 5 giriş yani 1; bit 6 ve 7 çıkış yani 0. Sayı: 0011 0000, onaltılıkta 0x30. MOVLW 0x30, MOVWF TRISB."},
+  {t:"TRISD maskesi: 0xF8",
+   s:"İlk 3 bit, yani bit 0-1-2 çıkış yani 0; geri kalanları giriş yani 1. Sayı: 1111 1000, onaltılıkta 0xF8. MOVLW 0xF8, MOVWF TRISD. Dikkat, 0xF8 tersi 0x07 değil, ilk üç bit sıfır olduğu için doğrudan 0xF8."},
+  {t:"Pull-up: OPTION_REG bit 7",
+   s:"Ek bilgi diyor ki PORTB'nin her ucunda zayıf bir dahili pull-up var ve tüm pull-up'lar OPTION_REG'in 7. biti olan RBPU biti temizlenerek açılır. Yani BCF OPTION_REG,7 yazıyoruz. Sonra BCF STATUS,RP0 ile Bank 0'a döneriz.",
+   code:"BCF   STATUS,RP1\nBSF   STATUS,RP0   ; Bank 1\nMOVLW 0x30         ; 0011 0000 : bit4-5 giris\nMOVWF TRISB\nMOVLW 0xF8         ; 1111 1000 : bit0-2 cikis\nMOVWF TRISD\nBCF   OPTION_REG,7 ; pull-up ac\nBCF   STATUS,RP0   ; Bank 0'a don"},
+  {t:"Sınav ipucu",
+   s:"Maskeleri ezberleme, her zaman 8 kutu çiz: giriş mi çıkış mı, 1 mi 0 mı. Sonra soldan sağa 8-4-2-1 ağırlıklarını yazıp topla. Bu yöntemle hiçbir maskeyi yanlış yazmazsın."}
+ ],
+ answer:"TRISB = 0x30 · TRISD = 0xF8 · BCF OPTION_REG,7 (pull-up) · hepsi Bank 1'de"
+},
+{
+ grp:"Soru 4 · Yazılım Geliştirme",
+ title:"1'leri sayan 8 bitlik fonksiyon",
+ exam:["2025 Yaz"], stars:3,
+ prompt:"8 bitlik bir sayının içindeki 1'lerin adedini bulan fonksiyonu PIC assembler dilinde yazınız. Sayi EQU 0x25, Adet EQU 0x26.",
+ steps:[
+  {t:"İskeleti kur",
+   s:"Önce Adet'i sıfırla: CLRF Adet. Sonra döngü sayacını 8'e ayarla: MOVLW 8, MOVWF Sayac. Çünkü 8 bit var, 8 tur döneceğiz."},
+  {t:"Döngü gövdesi",
+   s:"Tekrar etiketinde BTFSC Sayi,0 komutu en sağdaki biti test eder. Bit 0 ise sonraki komutu atlar, yani 1 ise INCF Adet,1 çalışır ve sayacı artırır. Sonra RRF Sayi,1 ile sayıyı sağa döndürür, sıradaki bit en sağa gelir. DECFSZ Sayac,1 sayacı azaltır ve sıfır olana kadar GOTO Tekrar ile dönülür. RETURN ile biter.",
+   code:"AdetBul CLRF  Adet\n        MOVLW 8\n        MOVWF Sayac     ; 8 tur\nTekrar  BTFSC Sayi,0    ; en sag bit 1 mi?\n        INCF  Adet,1    ; evet: Adet++\n        RRF   Sayi,1    ; siradaki bit en saga\n        DECFSZ Sayac,1\n        GOTO  Tekrar\n        RETURN"},
+  {t:"Örnek: SAYI = 0xB6",
+   s:"0xB6 ikili olarak 1011 0110. İçinde 1 olan bitler: 7, 5, 4, 2, 1 — toplam 5 tane. Yani program sonunda ADET eşittir 5. Döngü sayıyı döndürdüğü için orijinal değeri bozulur, bunu not et."},
+  {t:"Basit alternatif",
+   s:"Hoca 'profesyonel' diye döngülü çözümü veriyor ama sınavda 8 tane BTFSC INCF çifti de tam puan alır. Her bit için: BTFSC Sayi,0, INCF Adet,1; sonra bir sonraki bit için BTFSC Sayi,1, INCF Adet,1 ve böylece bit 7'ye kadar. Hangisi hızlı geldiyse onu yaz."}
+ ],
+ answer:"Döngü ile 8 bit taranır · SAYI = 0xB6 → ADET = 5"
+},
+{
+ grp:"Soru 4 · Yazılım Geliştirme",
+ title:"100 ms gecikme alt programı (Delay100ms)",
+ exam:["Lab 2"], stars:2,
+ prompt:"4 MHz çalışma için yaklaşık 100 ms'lik bir gecikme alt programı yazınız. Bu yapıyla elde edilebilecek maksimum gecikme nedir?",
+ steps:[
+  {t:"Zamanlama temeli",
+   s:"4 MHz'de komut saati 1 MHz'tir, çünkü komut 4 saat çevriminde işlenir. Yani her komut 1 mikrosaniye sürer. DECFSZ ve GOTO çifti birlikte 3 mikrosaniye tutar — bu üçlüyü ezberle."},
+  {t:"İç içe iki sayaç",
+   s:"Dış sayaç Sayac1'e 128, iç sayaç Sayac2'ye 255 veriyoruz. İç döngü: 255 çarpı 3 eşittir 765 mikrosaniye. Bu iç döngü dış sayaç kadar tekrar ediyor: 128 çarpı 765 mikrosaniye eşittir yaklaşık 98 milisaniye, yani kabaca 100 ms.",
+   code:"Delay100ms\n        MOVLW 128\n        MOVWF Sayac1\nAZALT2  MOVLW 255\n        MOVWF Sayac2\nAZALT1  DECFSZ Sayac2,1\n        GOTO  AZALT1\n        DECFSZ Sayac1,1\n        GOTO  AZALT2\n        RETURN"},
+  {t:"Maksimum gecikme sorusu",
+   s:"Slaytta çıkan ikinci soru şu: burada maksimum gecikme ne olabilir? Her iki sayacı da 255'e koy: 255 çarpı 765 mikrosaniye eşittir yaklaşık 195 milisaniye. Yani bu yapıyla en fazla 195 ms."},
+  {t:"Blocking gecikme kavramı",
+   s:"Bu bir blocking, yani engelleyen gecikmedir: işlemci gecikme boyunca başka hiçbir iş yapamaz, sadece kesmeler çalışır. Engellemesin istenirse Timer ve kesme kullanılır. Bu cümle sınavda tam puan getirir."}
+ ],
+ answer:"128 × 255 × 3 µs ≈ 98 ms ≈ 100 ms · maksimum: 255 × 765 µs ≈ 195 ms"
+},
+{
+ grp:"Soru 4 · Yazılım Geliştirme",
+ title:"Zar atma programı (2022)",
+ exam:["2022"], stars:2,
+ prompt:"S2 butonuna basılınca diceval 1'den 6'ya kadar işlemci hızında sayar, bırakılınca sayma durur ve diceval PORTD'de ikili olarak görülür. diceval 0x70 adresinde, RA2 buton girişi, PORTD çıkış, başlangıçta diceval = 1.",
+ steps:[
+  {t:"İlklendirme",
+   s:"diceval 0x70 adresinde. Bu önemli bir bilgi: 0x70-0x7F aralığı tüm bankalarda aynı olduğu için banka seçmeden erişilir. Bank 1'e geçip TRISA'ya 0x04 yazıyoruz, çünkü RA2 giriştir ve bit 2'dir. TRISD'yi sıfırlayıp çıkış yapıyoruz, sonra Bank 0'a dönüyoruz ve diceval'i 1'e eşitliyoruz."},
+  {t:"Buton bekleyişi",
+   s:"B etiketinde BTFSS PORTA,2 komutu: RA2 1 ise sonraki komutu atlar. Yani buton basılı değilse GOTO B ile beklemeye döneriz, sayma durur ve değer LED'de kalır. Buton basılıysa atlamayız ve devam ederiz."},
+  {t:"Yazma, artırma, sarma",
+   s:"Önce MOVF diceval,0 ve MOVWF PORTD ile değeri LED'lere yazıyoruz. Sonra INCF diceval,1 ile artırıyoruz. Dikkat: yazma artırma işleminden önce yapılıyor, bu yüzden PORTD'ye hep 1 ile 6 arası bir değer düşer.",
+   code:"B       BTFSS PORTA,2     ; S2 basili mi?\n        GOTO  B            ; hayir: bekle\n        MOVF  diceval,0     ; diceval -> PORTD\n        MOVWF PORTD\n        INCF  diceval,1     ; say\n        MOVF  diceval,0\n        XORLW 7            ; 7 mi?\n        BTFSS STATUS,Z\n        GOTO  B\n        MOVLW 1\n        MOVWF diceval       ; 7 ise 1 yap\n        GOTO  B"},
+  {t:"XORLW ile eşitlik testi",
+   s:"XORLW 7, W'yi 7 ile XOR'lar. İki sayı eşitse sonuç 0 olur ve Z bayrağı 1 olur. BTFSS STATUS,Z ise Z 1 ise sonraki komutu atlar. Yani diceval 7 olduysa MOVLW 1 ve MOVWF diceval çalışır, değer 1'e döner. Böylece döngü 1-6 arasında döner."}
+ ],
+ answer:"Buton basılı: 1'den 6'ya sayar · bırakınca durur · XORLW 7 ile Z bayrağı kullanılır"
+},
+{
+ grp:"Soru 4 · Yazılım Geliştirme",
+ title:"Timer1 kesmesiyle 1 saniyelik LED flaşör",
+ exam:["Lab 3"], stars:3,
+ prompt:"Timer1 kesmesi kullanarak PORTD'ye bağlı LED'leri 1 saniye aralıklarla yakıp söndüren programı yazınız. Fosc = 4 MHz, prescaler 1:8.",
+ steps:[
+  {t:"Önce zamanı hesapla",
+   s:"Tclk eşittir 4 MHz bölü 4 bölü 8 eşittir 125 kHz. 100 ms için gereken sayım: 0,1 çarpı 125.000 eşittir 12.500. Başlangıç: 65536 eksi 12.500 eşittir 53.036, onaltılıkta 0xCF2C. Yani TMR1H = 0xCF, TMR1L = 0x2C. Her kesme 100 ms, 10 kesme ise tam 1 saniye."},
+  {t:"Kesme yordamının ilk ve son komutları",
+   s:"İlk üç komut bağlam yedeklemedir: W, STATUS ve PCLATH kayıtçıları w_temp, status_temp ve pclath_temp değişkenlerine saklanır, çünkü kesme yordamı bunları bozacaktır. STATUS'ü doğrudan RAM'e kopyalayan komut yoktur, önce W'ye alınıp sonra yazılır. Son komutlar aynı değerleri geri yükler ve RETFIE ile dönülür."},
+  {t:"Kesme gövdesi",
+   s:"BCF PIR1,0 ile TMR1IF bayrağı elle silinir, çünkü Timer1 taşınca bu bayrak 1 olur. Sonra Timer1 durdurulur, 0x2C ve 0xCF yeniden yüklenir ve tekrar başlatılır. INCF Sayac,1 ile sayaç bir artırılır, yani 100 ms geçti."},
+  {t:"RETFIE neden?",
+   s:"RETFIE kesmeden döner: stack'ten PC'yi geri alır ve GIE bayrağını tekrar 1 yapar. Kesme programı mutlaka RETFIE ile bitmelidir. Not: W geri yüklemesini swapf ile yapmak daha doğrudur, çünkü movf Z bayrağını değiştirir."},
+  {t:"Ana program ve kontrol listesi",
+   s:"Ana program: PORTD çıkış, PIE1 bit 0 yani TMR1IE açılır, T1CON'a b'00110000' yazılır yani prescaler 1:8 ve dahili saat, TMR1H ve TMR1L yüklenir, sonra PEIE ve GIE açılır. Döngüde Sayac 10 mu diye bakılır, eşitse Sayac sıfırlanır ve PORTD XOR 0xFF ile terslenir. Kesmeyi açmak için gereken üçlü: GIE, PEIE ve TMR1IE.",
+   code:"KONTROL LISTESI:\n  GIE  = 1  (INTCON bit 7)\n  PEIE = 1  (INTCON bit 6)\n  TMR1IE=1  (PIE1 bit 0, Bank 1)\n  TMR1IF elle silinir (PIR1 bit 0)"}
+ ],
+ answer:"Tclk = 125 kHz → 0xCF2C = 100 ms → 10 kesme = 1 s · RETFIE ile bitir"
+},
+{
+ grp:"Soru 4 · Yazılım Geliştirme",
+ title:"Kesmeli flaşör + kayan ışık programı analizi",
+ exam:["Notlar"], stars:3,
+ prompt:"Kesme yordamındaki ilk 6 komut ve son 4 komut ne işe yarar? TMR1 = 0xCF2C yüklenirse Timer1 kaç sayımda taşar, Fosc = 4 MHz için süre nedir? Program ne yapar?",
+ steps:[
+  {t:"Bağlam yedekleme ve geri yükleme",
+   s:"İlk komutlar W, STATUS ve PCLATH'i yedeklemektir, çünkü kesme yordamı bunları bozacak. Son komutlar aynı değerleri geri yükler ve RETFIE ile dönülür. RETFIE neden: stack'ten PC'yi alır ve GIE'yi tekrar 1 yapar."},
+  {t:"T1CON = b'00111100' çözümü",
+   s:"Bitleri tek tek okuyalım. Bit 5-4 yani T1CKPS1:T1CKPS0 eşittir 11, bu prescaler 1-8 demektir. Bit 3 T1OSCEN eşittir 1. Bit 2 T1SYNC eşittir 1. Bit 1 TMR1CS eşittir 0, yani dahili saat Fosc bölü 4. Bit 0 TMR1ON eşittir 0, yani Timer1 başta kapalı, sonra bsf T1CON,0 ile açılıyor."},
+  {t:"Taşma hesabı",
+   s:"0xCF2C ondalıkta 53.036. Taşma için gereken sayı: 65536 eksi 53.036 eşittir 12.500. Fosc 4 MHz ve prescaler 1-8 ise Tclk eşittir 125 kHz. Süre: 12.500 bölü 125.000 eşittir 100 milisaniye. Programdaki 'yaklaşık 50 ms' yorumu Fosc 8 MHz varsayımıyla uyumludur, yani saat frekansı farklıdır."},
+  {t:"Program ne yapıyor — iki mod",
+   s:"Ana program PORTB'yi giriş, PORTD'yi çıkış yapar ve Timer1 kesmesini açar. Birinci mod flaşör: Sayac1 beş olana kadar bekler, yani 5 kesme, sonra PORTD'yi XOR 0xFF ile tersler, LED'ler yanar söner ve Sayac1 sıfırlanır. RB7 basılı değilse bunu tekrarlar."},
+  {t:"İkinci mod: kayan ışık",
+   s:"Eğer RB7 basılıysa kayan ışık moduna geçilir: RD0 yakılır, her kesmede ışık sola kaydırılır RD7'ye kadar, sonra sağa kaydırılır RD0'a kadar. Buton hâlâ basılıysa tekrarlanır. Buton bırakılınca PORTD söndürülür ve flaşör moduna dönülür."},
+  {t:"Özet cümle",
+   s:"Sınavda tek cümlelik cevap şu: program Timer1 kesmesiyle saydırır, ana döngüde flaşör modunda LED'leri tersler, butona basınca da sola ve sağa kayan ışık moduna geçer."}
+ ],
+ answer:"0xCF2C → 12.500 sayım → 100 ms · program: flaşör + butonla kayan ışık modu"
+}
+];
+
+/* ============================================================
+   ARAYÜZ VE KONUŞMA MOTORU
+   ============================================================ */
+const listEl = document.getElementById('list');
+const contentEl = document.getElementById('content');
+const nowEl = document.getElementById('nowPlaying');
+const rateEl = document.getElementById('rate');
+const rateValEl = document.getElementById('rateVal');
+const voiceSel = document.getElementById('voiceSel');
+
+let current = 0;
+let stepEls = [];
+let speaking = false;
+let paused = false;
+let playAll = false;
+let stepIndex = 0;
+let utter = null;
+let voices = [];
+
+/* ---- Sesleri yükle ---- */
+function loadVoices(){
+  voices = speechSynthesis.getVoices();
+  const tr = voices.filter(v => /tr/i.test(v.lang));
+  const use = tr.length ? tr : voices;
+  voiceSel.innerHTML = use.map((v,i)=>`<option value="${voices.indexOf(v)}">${v.name} (${v.lang})</option>`).join('');
+}
+loadVoices();
+if (typeof speechSynthesis !== 'undefined') speechSynthesis.onvoiceschanged = loadVoices;
+
+/* ---- Listeyi oluştur ---- */
+function buildList(){
+  let html = '', lastGrp = '';
+  QUESTIONS.forEach((q,i)=>{
+    if(q.grp !== lastGrp){ html += `<div class="grp">${q.grp}</div>`; lastGrp = q.grp; }
+    const stars = '★'.repeat(q.stars) + '☆'.repeat(3-q.stars);
+    html += `<div class="item" data-i="${i}">
+      <div>${q.title}</div>
+      <div class="meta"><span class="stars">${stars}</span> ${q.exam.map(e=>`<span class="tag">${e}</span>`).join('')}</div>
+    </div>`;
+  });
+  listEl.innerHTML = html;
+  listEl.querySelectorAll('.item').forEach(el=>{
+    el.addEventListener('click', ()=>{ stop(); playAll=false; select(+el.dataset.i); });
+  });
+}
+
+/* ---- Soruyu göster ---- */
+function select(i){
+  current = i;
+  const q = QUESTIONS[i];
+  const stars = '★'.repeat(q.stars) + '☆'.repeat(3-q.stars);
+  let html = `<div class="card">
+    <div class="head">
+      <h2>${q.title}</h2>
+      <div class="meta"><span class="stars">${stars}</span> ${q.exam.map(e=>`<span class="tag">${e}</span>`).join('')} · ${q.grp}</div>
+    </div>
+    <div class="prompt"><b>Soru:</b> ${q.prompt}</div>`;
+  if(q.code) html += `<div class="steps"><pre>${q.code}</pre></div>`;
+  html += `<div class="steps" id="steps">`;
+  q.steps.forEach((s,idx)=>{
+    html += `<div class="step" data-s="${idx}">
+      <div class="no">ADIM ${idx+1} — ${s.t}</div>
+      <p>${s.s}</p>
+      ${s.code?`<pre>${s.code}</pre>`:''}
+    </div>`;
+  });
+  html += `</div><div class="steps"><div class="answer">${q.answer}</div>
+    <div class="hint">💡 İpucu: “Anlatımı Başlat” dediğinde bu sorunun adımları sırayla seslendirilir ve aktif adım vurgulanır.</div>
+  </div></div>`;
+  contentEl.innerHTML = html;
+  stepEls = [...contentEl.querySelectorAll('.step')];
+  listEl.querySelectorAll('.item').forEach(el=>el.classList.toggle('active', +el.dataset.i===i));
+  nowEl.textContent = `${i+1}/${QUESTIONS.length} · ${q.title}`;
+}
+
+/* ---- Metni cümlelere böl (mobil Safari'de uzun metin kesilmesini önler) ---- */
+function splitForSpeech(text){
+  const parts = text.match(/[^.!?]+[.!?]*/g) || [text];
+  const out = [];
+  let cur = "";
+  for(let p of parts){
+    p = p.trim(); if(!p) continue;
+    if((cur + " " + p).trim().length > 180 && cur){ out.push(cur); cur = p; }
+    else cur = (cur ? cur + " " : "") + p;
+    while(cur.length > 260){ // çok uzun parça varsa boşluktan böl
+      let cut = cur.lastIndexOf(" ", 200);
+      if(cut < 50) cut = 200;
+      out.push(cur.slice(0, cut)); cur = cur.slice(cut).trim();
+    }
+  }
+  if(cur) out.push(cur);
+  return out;
+}
+
+/* ---- Metni seslendir (parça parça, mobil uyumlu) ---- */
+function speak(text, onDone){
+  if(!('speechSynthesis' in window)){ onDone && onDone(); return; }
+  speechSynthesis.cancel();
+  const chunks = splitForSpeech(text);
+  let i = 0;
+  const next = ()=>{
+    if(i >= chunks.length){ onDone && onDone(); return; }
+    const u = new SpeechSynthesisUtterance(chunks[i++]);
+    u.lang = 'tr-TR';
+    const vIdx = +voiceSel.value;
+    if(voices[vIdx]) u.voice = voices[vIdx];
+    u.rate = +rateEl.value;
+    u.pitch = 1;
+    // onend gelmezse (iOS hatası) veya ses hatasında da ilerle, takılmasın
+    u.onend   = ()=>{ if(!paused) next(); };
+    u.onerror = ()=>{ if(!paused) next(); };
+    speechSynthesis.speak(u);
+  };
+  next();
+}
+
+/* ---- Adım adım anlat ---- */
+function playSteps(from){
+  if(from >= QUESTIONS[current].steps.length){
+    // soru bitti
+    stepEls.forEach(el=>el.classList.remove('speaking'));
+    if(playAll){
+      if(current < QUESTIONS.length-1){
+        select(current+1);
+        setTimeout(()=>playSteps(0), 700);
+      } else {
+        playAll = false;
+        speaking = false;
+        document.getElementById('btnPlay').textContent = '▶ Anlatımı Başlat';
+        nowEl.textContent = '📚 Tüm sorular tamamlandı — tekrar dinlemek için başlatın';
+        speechSynthesis.cancel();
+      }
+    } else {
+      speaking = false;
+      document.getElementById('btnPlay').textContent = '▶ Anlatımı Başlat';
+      nowEl.textContent = '✔ Soru anlatımı tamamlandı';
+    }
+    return;
+  }
+  const q = QUESTIONS[current];
+  const s = q.steps[from];
+  stepIndex = from;
+  stepEls.forEach((el,idx)=>{
+    el.classList.toggle('speaking', idx===from);
+    el.classList.toggle('done', idx<from);
+  });
+  stepEls[from].scrollIntoView({behavior:'smooth', block:'center'});
+  nowEl.textContent = `${q.title} — adım ${from+1}/${q.steps.length}`;
+  const msg = `${s.t}. ${s.s}`;
+  speak(msg, ()=>{ if(speaking) playSteps(from+1); });
+}
+
+/* ---- Kontroller ---- */
+document.getElementById('btnPlay').addEventListener('click', ()=>{
+  if(!('speechSynthesis' in window)){ alert('Tarayıcınız sesli okumayı desteklemiyor. Chrome veya Edge deneyin.'); return; }
+  if(speaking && paused){
+    paused = false;
+    speechSynthesis.resume();
+    document.getElementById('btnPlay').textContent = '⏸ Anlatılıyor...';
+    return;
+  }
+  if(speaking) return;
+  speaking = true; paused = false;
+  document.getElementById('btnPlay').textContent = '⏸ Anlatılıyor...';
+  playSteps(0);
+});
+
+document.getElementById('btnPause').addEventListener('click', ()=>{
+  if(!speaking) return;
+  paused = true;
+  speechSynthesis.pause();
+  document.getElementById('btnPlay').textContent = '▶ Devam Et';
+  nowEl.textContent = '⏸ Duraklatıldı';
+});
+
+document.getElementById('btnStop').addEventListener('click', stop);
+function stop(){
+  speaking = false; paused = false; playAll = false;
+  speechSynthesis.cancel();
+  stepEls.forEach(el=>el.classList.remove('speaking','done'));
+  document.getElementById('btnPlay').textContent = '▶ Anlatımı Başlat';
+  nowEl.textContent = '⏹ Durduruldu';
+}
+
+document.getElementById('btnPrev').addEventListener('click', ()=>{ stop(); if(current>0) select(current-1); });
+document.getElementById('btnNext').addEventListener('click', ()=>{ stop(); if(current<QUESTIONS.length-1) select(current+1); });
+
+document.getElementById('btnAll').addEventListener('click', ()=>{
+  stop();
+  playAll = true; speaking = true; paused = false;
+  select(0);
+  document.getElementById('btnPlay').textContent = '⏸ Anlatılıyor...';
+  setTimeout(()=>playSteps(0), 500);
+});
+
+rateEl.addEventListener('input', ()=>{ rateValEl.textContent = (+rateEl.value).toFixed(2)+'x'; });
+
+/* ---- Klavye ---- */
+document.addEventListener('keydown', e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+  if(e.code==='Space'){ e.preventDefault(); document.getElementById('btnPlay').click(); }
+  if(e.key==='ArrowRight'){ document.getElementById('btnNext').click(); }
+  if(e.key==='ArrowLeft'){ document.getElementById('btnPrev').click(); }
+});
+
+buildList();
+select(0);
+</script>
+</body>
+</html>
